@@ -238,10 +238,6 @@
       return `${hh}:${mm}`;
     }
 
-    function utcToChinaMinutes(utcMinutes) {
-      return utcMinutes + 8 * 60;
-    }
-
     function buildUtcIntervals(localStart, localEnd, offsetMinutes) {
       let start = localStart - offsetMinutes;
       let end = localEnd - offsetMinutes;
@@ -323,10 +319,10 @@
       let html = `<h2>参与者时区</h2><div>${chips}</div>`;
 
       if (data.overlaps.length > 0) {
-        html += `<p class="ok"><strong>有工作时间重叠 ✅</strong>（以下为中国时间，UTC+8）</p>`;
+        html += `<p class="ok"><strong>有工作时间重叠 ✅</strong>（以下为 UTC 时间段）</p>`;
         html += `<ul>`;
         for (const [s, e] of data.overlaps.slice(0, 5)) {
-          html += `<li><strong>${minutesToHHMM(utcToChinaMinutes(Math.floor(s)))} - ${minutesToHHMM(utcToChinaMinutes(Math.floor(e)))}（中国时间）</strong></li>`;
+          html += `<li><strong>${minutesToHHMM(Math.floor(s))} - ${minutesToHHMM(Math.floor(e))} UTC</strong></li>`;
         }
         html += `</ul>`;
       } else {
@@ -334,8 +330,7 @@
       }
 
       html += `<h2>建议会议时间</h2>
-        <p><strong>${minutesToHHMM(utcToChinaMinutes(data.suggestion.utcMinute))} - ${minutesToHHMM(utcToChinaMinutes(data.suggestion.utcMinute + 60))}（中国时间）</strong>（建议时长 60 分钟）</p>
-        <p class="small">对应 UTC：${minutesToHHMM(data.suggestion.utcMinute)} - ${minutesToHHMM(data.suggestion.utcMinute + 60)}</p>
+        <p><strong>${minutesToHHMM(data.suggestion.utcMinute)} - ${minutesToHHMM(data.suggestion.utcMinute + 60)} UTC</strong>（建议时长 60 分钟）</p>
         <p class="small">评分：${data.suggestion.score}；工作时间内人数：${data.suggestion.workCount}/${data.participants.length}；清醒但非工作时间人数：${data.suggestion.awakeCount}/${data.participants.length}；全员清醒：${data.suggestion.allAwake ? "是" : "否"}</p>
       `;
 

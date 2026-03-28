@@ -35,10 +35,3 @@
 例如仓库是 `https://github.com/alice/time-overlap-planner`，则链接是：
 
 - `https://alice.github.io/time-overlap-planner/`
-
-## 如果部署失败（常见修复）
-
-1. 确认仓库 **Settings → Pages** 中 Source 已选 `GitHub Actions`。
-2. 确认 Actions 权限允许创建和部署 Pages（`Settings → Actions → General`）。
-3. 确认默认分支里存在 `index.html`（本仓库工作流会复制到 `_site/index.html` 再部署）。
-4. 若你是 Fork 仓库，请确认仓库未禁用 Pages 功能。
