@@ -128,6 +128,26 @@
 
     <section class="card">
       <h2>参与地区</h2>
+      <div class="grid">
+        <label>快速添加常见城市/地区（可选）
+          <input id="cityPicker" list="cityOptions" placeholder="例如：慕尼黑 / 库比提诺 / Munich / Cupertino" />
+          <datalist id="cityOptions">
+            <option value="上海"></option>
+            <option value="北京"></option>
+            <option value="东京"></option>
+            <option value="新加坡"></option>
+            <option value="悉尼"></option>
+            <option value="伦敦"></option>
+            <option value="柏林"></option>
+            <option value="慕尼黑"></option>
+            <option value="纽约"></option>
+            <option value="库比提诺"></option>
+            <option value="Munich"></option>
+            <option value="Cupertino"></option>
+          </datalist>
+        </label>
+      </div>
+      <button class="btn" id="addRegionBtn" style="margin-top:0.6rem;">添加到地区列表</button>
       <textarea id="regions" rows="6" placeholder="每行一个地区/时区，例如：
 上海
 柏林
@@ -170,6 +190,7 @@
       "墨尔本": "Australia/Melbourne",
       "伦敦": "Europe/London",
       "柏林": "Europe/Berlin",
+      "慕尼黑": "Europe/Berlin",
       "巴黎": "Europe/Paris",
       "阿姆斯特丹": "Europe/Amsterdam",
       "迪拜": "Asia/Dubai",
@@ -182,7 +203,10 @@
       "旧金山": "America/Los_Angeles",
       "西雅图": "America/Los_Angeles",
       "温哥华": "America/Vancouver",
-      "圣保罗": "America/Sao_Paulo"
+      "库比提诺": "America/Los_Angeles",
+      "圣保罗": "America/Sao_Paulo",
+      "munich": "Europe/Berlin",
+      "cupertino": "America/Los_Angeles"
     };
 
     const supportedZones = new Set(Intl.supportedValuesOf("timeZone"));
@@ -197,6 +221,7 @@
       if (!v) return null;
       if (supportedZones.has(v)) return v;
       if (aliasMap[v]) return aliasMap[v];
+      if (aliasMap[v.toLowerCase()]) return aliasMap[v.toLowerCase()];
 
       const lower = v.toLowerCase();
       for (const zone of supportedZones) {
@@ -410,6 +435,16 @@
     }
 
     document.getElementById("calcBtn").addEventListener("click", calculate);
+    document.getElementById("addRegionBtn").addEventListener("click", () => {
+      const picker = document.getElementById("cityPicker");
+      const nextValue = picker.value.trim();
+      if (!nextValue) return;
+      const regions = document.getElementById("regions");
+      const current = regions.value.trim();
+      regions.value = current ? `${current}\n${nextValue}` : nextValue;
+      picker.value = "";
+      calculate();
+    });
     document.getElementById("regions").value = "上海\n柏林\n纽约";
     calculate();
   </script>
