@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>跨时区会议时间协调器</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --border: #d1d5db;
+      --good: #166534;
+      --warn: #92400e;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1220;
+        --card: #111827;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --primary: #60a5fa;
+        --border: #374151;
+        --good: #86efac;
+        --warn: #fbbf24;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft Yahei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 2rem auto;
+      padding: 0 1rem 2rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 5px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 { margin: 0 0 0.5rem; font-size: 1.55rem; }
+    h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+    p { margin: 0.4rem 0; color: var(--muted); }
+
+    textarea, input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.65rem 0.8rem;
+      font: inherit;
+      background: transparent;
+      color: var(--text);
+      margin-top: 0.35rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .btn {
+      margin-top: 0.9rem;
+      border: 0;
+      border-radius: 10px;
+      background: var(--primary);
+      color: white;
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .chip {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.2rem 0.6rem;
+      margin-right: 0.4rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.9rem;
+    }
+
+    .ok { color: var(--good); }
+    .warn { color: var(--warn); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.6rem;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 0.2rem;
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+
+    .small { font-size: 0.9rem; color: var(--muted); }
+    code { background: rgba(148, 163, 184, 0.2); padding: 0.1rem 0.35rem; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h1>跨时区会议时间协调器</h1>
+      <p>输入多个地区（建议直接输入 IANA 时区，例如 <code>Asia/Shanghai</code>、<code>Europe/Berlin</code>、<code>America/New_York</code>）。系统会优先找出工作时间重叠；若没有重叠，则给出尽量让大家都清醒的友好会议时间。</p>
+    </section>
+
+    <section class="card">
+      <h2>参与地区</h2>
+      <textarea id="regions" rows="6" placeholder="每行一个地区/时区，例如：
+上海
+柏林
+纽约"></textarea>
+      <div class="small">支持别名：北京/上海→Asia/Shanghai，纽约→America/New_York，伦敦→Europe/London，柏林→Europe/Berlin，东京→Asia/Tokyo，悉尼→Australia/Sydney 等。</div>
+
+      <div class="grid" style="margin-top: 1rem;">
+        <label>工作开始时间（本地）
+          <input id="workStart" type="time" value="09:00" />
+        </label>
+        <label>工作结束时间（本地）
+          <input id="workEnd" type="time" value="18:00" />
+        </label>
+        <label>清醒开始时间（本地）
+          <input id="awakeStart" type="time" value="07:00" />
+        </label>
+        <label>清醒结束时间（本地）
+          <input id="awakeEnd" type="time" value="23:00" />
+        </label>
+      </div>
+
+      <button class="btn" id="calcBtn">计算会议建议</button>
+    </section>
+
+    <section class="card" id="result"></section>
+  </main>
+
+  <script>
+    const aliasMap = {
+      "北京": "Asia/Shanghai",
+      "上海": "Asia/Shanghai",
+      "深圳": "Asia/Shanghai",
+      "香港": "Asia/Hong_Kong",
+      "台北": "Asia/Taipei",
+      "东京": "Asia/Tokyo",
+      "首尔": "Asia/Seoul",
+      "新加坡": "Asia/Singapore",
+      "曼谷": "Asia/Bangkok",
+      "悉尼": "Australia/Sydney",
+      "墨尔本": "Australia/Melbourne",
+      "伦敦": "Europe/London",
+      "柏林": "Europe/Berlin",
+      "巴黎": "Europe/Paris",
+      "阿姆斯特丹": "Europe/Amsterdam",
+      "迪拜": "Asia/Dubai",
+      "纽约": "America/New_York",
+      "波士顿": "America/New_York",
+      "多伦多": "America/Toronto",
+      "芝加哥": "America/Chicago",
+      "丹佛": "America/Denver",
+      "洛杉矶": "America/Los_Angeles",
+      "旧金山": "America/Los_Angeles",
+      "西雅图": "America/Los_Angeles",
+      "温哥华": "America/Vancouver",
+      "圣保罗": "America/Sao_Paulo"
+    };
+
+    const supportedZones = new Set(Intl.supportedValuesOf("timeZone"));
+
+    function parseTimeToMinutes(str) {
+      const [h, m] = str.split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function normalizeRegion(raw) {
+      const v = raw.trim();
+      if (!v) return null;
+      if (supportedZones.has(v)) return v;
+      if (aliasMap[v]) return aliasMap[v];
+
+      const lower = v.toLowerCase();
+      for (const zone of supportedZones) {
+        if (zone.toLowerCase().includes(lower.replace(/\s+/g, "_"))) {
+          return zone;
+        }
+      }
+      return null;
+    }
+
+    function getOffsetMinutes(date, timeZone) {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23"
+      }).formatToParts(date);
+
+      const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+      const localUTC = Date.UTC(
+        Number(map.year),
+        Number(map.month) - 1,
+        Number(map.day),
+        Number(map.hour),
+        Number(map.minute),
+        Number(map.second)
+      );
+
+      return (localUTC - date.getTime()) / 60000;
+    }
+
+    function minutesToHHMM(minutes) {
+      const m = ((minutes % 1440) + 1440) % 1440;
+      const hh = Math.floor(m / 60).toString().padStart(2, "0");
+      const mm = Math.floor(m % 60).toString().padStart(2, "0");
+      return `${hh}:${mm}`;
+    }
+
+    function buildUtcIntervals(localStart, localEnd, offsetMinutes) {
+      let start = localStart - offsetMinutes;
+      let end = localEnd - offsetMinutes;
+      start = ((start % 1440) + 1440) % 1440;
+      end = ((end % 1440) + 1440) % 1440;
+
+      if (start === end) return [[0, 1440]];
+      if (start < end) return [[start, end]];
+      return [[0, end], [start, 1440]];
+    }
+
+    function intersectIntervals(a, b) {
+      const out = [];
+      for (const [s1, e1] of a) {
+        for (const [s2, e2] of b) {
+          const s = Math.max(s1, s2);
+          const e = Math.min(e1, e2);
+          if (s < e) out.push([s, e]);
+        }
+      }
+      return out;
+    }
+
+    function isWithin(localMinute, start, end) {
+      if (start === end) return true;
+      if (start < end) return localMinute >= start && localMinute < end;
+      return localMinute >= start || localMinute < end;
+    }
+
+    function suggestFriendlySlot(participants, workStart, workEnd, awakeStart, awakeEnd) {
+      let best = null;
+
+      for (let utcMinute = 0; utcMinute < 1440; utcMinute += 30) {
+        let score = 0;
+        let awakeCount = 0;
+        let workCount = 0;
+
+        for (const p of participants) {
+          const local = ((utcMinute + p.offsetMinutes) % 1440 + 1440) % 1440;
+          const inWork = isWithin(local, workStart, workEnd);
+          const inAwake = isWithin(local, awakeStart, awakeEnd);
+          if (inWork) {
+            score += 3;
+            workCount += 1;
+          } else if (inAwake) {
+            score += 1;
+            awakeCount += 1;
+          } else {
+            score -= 4;
+          }
+        }
+
+        const allAwake = participants.every(p => {
+          const local = ((utcMinute + p.offsetMinutes) % 1440 + 1440) % 1440;
+          return isWithin(local, awakeStart, awakeEnd);
+        });
+
+        if (allAwake) score += 2;
+
+        if (!best || score > best.score) {
+          best = { utcMinute, score, workCount, awakeCount, allAwake };
+        }
+      }
+
+      return best;
+    }
+
+    function renderResult(data) {
+      const result = document.getElementById("result");
+      if (!data.ok) {
+        result.innerHTML = `<h2 class="warn">输入有误</h2><p>${data.message}</p>`;
+        return;
+      }
+
+      const chips = data.participants
+        .map(p => `<span class="chip">${p.raw} → ${p.zone} (UTC${p.offsetMinutes >= 0 ? "+" : ""}${(p.offsetMinutes / 60).toFixed(1)})</span>`)
+        .join("");
+
+      let html = `<h2>参与者时区</h2><div>${chips}</div>`;
+
+      if (data.overlaps.length > 0) {
+        html += `<p class="ok"><strong>有工作时间重叠 ✅</strong>（以下为 UTC 时间段）</p>`;
+        html += `<ul>`;
+        for (const [s, e] of data.overlaps.slice(0, 5)) {
+          html += `<li><strong>${minutesToHHMM(Math.floor(s))} - ${minutesToHHMM(Math.floor(e))} UTC</strong></li>`;
+        }
+        html += `</ul>`;
+      } else {
+        html += `<p class="warn"><strong>没有完全重叠的工作时间。</strong> 已为你找出“尽量友好”的开会时段（优先保证都清醒，其次尽量多人在工作时间）。</p>`;
+      }
+
+      html += `<h2>建议会议时间</h2>
+        <p><strong>${minutesToHHMM(data.suggestion.utcMinute)} - ${minutesToHHMM(data.suggestion.utcMinute + 60)} UTC</strong>（建议时长 60 分钟）</p>
+        <p class="small">评分：${data.suggestion.score}；工作时间内人数：${data.suggestion.workCount}/${data.participants.length}；清醒但非工作时间人数：${data.suggestion.awakeCount}/${data.participants.length}；全员清醒：${data.suggestion.allAwake ? "是" : "否"}</p>
+      `;
+
+      html += `<table><thead><tr><th>地区输入</th><th>映射时区</th><th>本地建议时间</th><th>状态</th></tr></thead><tbody>`;
+      for (const p of data.participants) {
+        const localStart = ((data.suggestion.utcMinute + p.offsetMinutes) % 1440 + 1440) % 1440;
+        const localEnd = (localStart + 60) % 1440;
+        const inWork = isWithin(localStart, data.workStart, data.workEnd);
+        const inAwake = isWithin(localStart, data.awakeStart, data.awakeEnd);
+        let status = inWork ? "工作时间" : (inAwake ? "清醒时间" : "休息时间");
+        html += `<tr><td>${p.raw}</td><td>${p.zone}</td><td>${minutesToHHMM(localStart)} - ${minutesToHHMM(localEnd)}</td><td>${status}</td></tr>`;
+      }
+      html += `</tbody></table>`;
+
+      result.innerHTML = html;
+    }
+
+    function calculate() {
+      const regionsRaw = document.getElementById("regions").value;
+      const workStart = parseTimeToMinutes(document.getElementById("workStart").value);
+      const workEnd = parseTimeToMinutes(document.getElementById("workEnd").value);
+      const awakeStart = parseTimeToMinutes(document.getElementById("awakeStart").value);
+      const awakeEnd = parseTimeToMinutes(document.getElementById("awakeEnd").value);
+
+      const rawItems = regionsRaw.split(/\n|,/).map(s => s.trim()).filter(Boolean);
+
+      if (rawItems.length < 2) {
+        renderResult({ ok: false, message: "请至少输入 2 个地区/时区。" });
+        return;
+      }
+
+      const now = new Date();
+      const participants = [];
+      const errors = [];
+
+      for (const raw of rawItems) {
+        const zone = normalizeRegion(raw);
+        if (!zone) {
+          errors.push(raw);
+          continue;
+        }
+        const offsetMinutes = getOffsetMinutes(now, zone);
+        participants.push({ raw, zone, offsetMinutes });
+      }
+
+      if (participants.length < 2) {
+        renderResult({ ok: false, message: `可识别时区不足。无法识别：${errors.join("、") || "无"}` });
+        return;
+      }
+
+      let overlap = [[0, 1440]];
+      for (const p of participants) {
+        const utcWork = buildUtcIntervals(workStart, workEnd, p.offsetMinutes);
+        overlap = intersectIntervals(overlap, utcWork);
+      }
+
+      const suggestion = overlap.length > 0
+        ? { utcMinute: Math.floor(overlap[0][0]), score: 999, workCount: participants.length, awakeCount: 0, allAwake: true }
+        : suggestFriendlySlot(participants, workStart, workEnd, awakeStart, awakeEnd);
+
+      renderResult({
+        ok: true,
+        participants,
+        overlaps: overlap,
+        suggestion,
+        workStart,
+        workEnd,
+        awakeStart,
+        awakeEnd
+      });
+    }
+
+    document.getElementById("calcBtn").addEventListener("click", calculate);
+    document.getElementById("regions").value = "上海\n柏林\n纽约";
+    calculate();
+  </script>
+</body>
+</html>
